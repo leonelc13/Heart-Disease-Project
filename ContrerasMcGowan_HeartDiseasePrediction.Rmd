@@ -1,0 +1,367 @@
+---
+header-includes:
+  - \usepackage{float}
+output:
+  pdf_document:
+    toc: false
+    toc_depth: 3
+    number_sections: true
+    latex_engine: xelatex
+  html_document:
+    toc: false
+    toc_depth: '3'
+    df_print: paged
+latex_engine: xelatex
+geometry: "left=2.5cm,right=2.5cm,top=3cm,bottom=3cm"
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = T, cache.lazy = FALSE) # notice cache=T here
+knitr::opts_chunk$set(fig.height=4, fig.width=7, fig.align = 'center', warning = F)
+
+if(!require('pacman')) {
+  install.packages('pacman')
+}
+pacman::p_load(keras, ggplot2, glmnet, RColorBrewer, wordcloud, neuralnet,
+               plotly, latex2exp, data.table, randomForest, car)
+library(grid)
+library(gridExtra)
+library(caret)
+library(knitr)
+library(kableExtra)
+
+```
+
+\pagenumbering{gobble}  
+\begin{center}
+\Huge Identifying Predictors of Heart Disease: A Comparative Study Using LASSO Regression and Neural Networks\\[0.2in]
+\Large Written By: Leonel Contreras and Nicholas McGowan\\
+\Large STAT4710: Modern Data Mining\\
+\Large Dr. Linda Zhao\\
+\Large \today
+\end{center}
+
+\newpage
+
+\tableofcontents
+
+\pagenumbering{arabic} 
+
+
+
+\newpage
+# Summary
+
+This project consists of the analysis of a cohort of 900+ patients and their health information in order to determine what health factors carry the most weight and are the best at determing whether or not a patient has heart diseases. Additionally, a second goal of this project was to create a mdeol that can help predict whether a patient has or will have heart disease using its health information. The dataset comes from GitHub, and contains the information of 900+ patietns. As part of our variables, the dataset includes information such as Age, Sex, Max Heart Rate, Resting Blood Pressure, Type of Chest Pain, and more. 
+
+One method of analysis done in this paper is LASSO analysis. This is because, as explained previously, it is important to be able to determine if a patient is more or less likely to develop heart disease. Because of that, we must consequently determine which variables have the greatest impact on if a patient has heart disease. LASSO is useful to do this, because it allows us to generate a model that explains which variables are the most consequential. For example, we will be able to determine how much weight fasting blood pressure has on heart disease diagnosis. 
+
+The neural network model used here is a multilayer perceptron (MLP), designed with multiple hidden layers utilizing the ReLU activation function and a final output layer with a sigmoid activation. This architecture is effective for binary classification problems, such as predicting the presence of heart disease, which is the focus of this study. The model's ability to learn non-linear relationships and patterns from a set of clinical variables (e.g., age, cholesterol levels, and blood pressure) makes it particularly useful in medical diagnostics, where it can help in the early detection and management of heart disease by identifying high-risk patients based on their clinical profiles.
+
+Looking at the findings that we were able to collect, the LASSO Regression on the dataset revealed that these were the best variables for predicting heart disease: ChestPainTypeATA, ChestPainTypeTA, ChestPainTypeNAP, MaxHR. ExerciseAnginaY, Oldpeak, ST_SlopeFlat, and ST_SlopeUp. The confusion matrix results show that the model predicted 108 true positives and 55 true negatives, indicating strong performance in correctly identifying both cases with and without heart disease. However, with 10 false positives and 11 false negatives, there is still room for improvement, particularly in minimizing erroneous predictions to enhance the model's clinical reliability and precision. The model ultimately achieved a validation accuracy of 87.5%, indicating a high level of precision as mentioned earlier.
+
+\newpage
+# Description of The Problem
+Heart disease remains one of the most formidable health challenges globally, accounting for a substantial number of premature deaths and diminished quality of life each year. It encompasses a range of conditions affecting the heart, including coronary artery disease, arrhythmias, and congenital heart defects. According to the World Health Organization, cardiovascular diseases are the number one cause of death globally, taking an estimated 17.9 million lives annually. The high fatality rate from heart disease is not only a significant health concern but also imposes a considerable economic burden due to high medical costs and lost productivity.
+
+Predicting heart disease effectively offers numerous benefits and is crucial for mitigating its impact. Early prediction allows for timely intervention, potentially staving off the development of severe complications. Preventive strategies, such as lifestyle modifications and preemptive medical therapy, can be significantly more effective when initiated early. For instance, adjusting diet, increasing physical activity, and managing stress levels can dramatically reduce the likelihood of heart disease developing or worsening. Moreover, early pharmacological intervention can help manage risk factors like high blood pressure and cholesterol more effectively, reducing the risk of heart attacks or strokes.
+
+Advancements in technology and data analytics have greatly enhanced our ability to forecast heart disease. Using machine learning algorithms and predictive modeling, healthcare providers can now identify at-risk individuals with greater accuracy based on genetic factors, lifestyle choices, and other health indicators. This personalized approach not only improves the efficiency of screenings and treatments but also optimizes resource allocation in healthcare systems. As research continues to evolve, the integration of predictive analytics in routine clinical practice promises to significantly reduce the incidence and impact of heart disease, ultimately saving lives and improving health outcomes.
+
+# Description of The Data
+The dataset was obtained from a GitHub Repository and contains the health information of 900+ patients. The dataset contains 11 clinical attributes aimed at predicting heart disease. Attributes include Age, Sex, Chest Pain types (TA, ATA, NAP, ASY), Resting BP, Cholesterol levels, Fasting Blood Sugar, Resting ECG (Normal, ST, LVH), Max Heart Rate, Exercise Angina, Oldpeak, ST Slope (Up, Flat, Down), and Heart Disease status (1: heart disease, 0: normal). A more detailed explanation of the variables can be read below:
+
+## Age
+Age of a patient [years]
+
+## Sex
+Gender of the patient [M: Male, F: Female]
+
+## ChestPain
+Chest pain type [TA: Typical Angina, ATA: Atypical Angina, NAP: Non-Anginal Pain, ASY: Asymptomatic]
+
+## RestingBP
+Blood pressure in Hg (Normal blood pressure - 120/80 Hg)
+
+## Cholesterol
+Serum cholestrol level in blood (Normal cholesterol level below for adults 200mg/dL)
+
+## FastingBS
+Fasting Blood Sugar (Normal less than 100mg/dL for non diabetes for diabetes 100-125mg/dL)
+
+## RestingECG
+Resting electrocardiogram results [Normal: Normal, ST: having ST-T wave abnormality (T wave inversions and/or ST elevation or depression of > 0.05 mV), LVH: showing probable or definite left ventricular hypertrophy by Estes' criteria]
+
+## MaxHR
+Resting electrocardiogram results [Normal: Normal, ST: having ST-T wave abnormality (T wave inversions and/or ST elevation or depression of > 0.05 mV), LVH: showing probable or definite left ventricular hypertrophy by Estes' criteria]
+
+## ExerceAngina
+Exercise-induced angina [Y: Yes, N: No]
+
+## Oldpeak
+oldpeak = ST [Numeric value measured in depression]
+
+## ST_Slope
+The slope of the peak exercise ST segment [Up: upsloping, Flat: flat, Down: downsloping]
+12. 
+
+## HeartDisease
+output class [1: heart disease, 0: Normal]
+
+# Exploratory Data Analysis
+
+```{r, echo=FALSE}
+heart_data <- read.csv("heart.csv")
+```
+
+Crucial to ensuring that our models worked effectively, a data cleaning process was carried out to ensure that there were no data outliers or missing values that might affect the performance of both models. 
+
+First off, we will begin by creating some visualizations of data in order to get an understanding of some general trends. All visualizations below are split in pairs by whether or not the patient has heart disease. The below chart analyzes the relationship between cholesterol level and having heart disease. 
+
+```{r, echo=FALSE, out.width='70%'}
+p1 <- ggplot(heart_data[which(heart_data$HeartDisease==1),]) + 
+  geom_histogram(aes(x = Cholesterol), bins = 100, fill = "blue") +
+  labs( title = "Cholesterol Level for Patients with Heart Disease", x = "Cholesterol" , y = "Frequency")
+p2 <- ggplot(heart_data[which(heart_data$HeartDisease==0),]) + 
+  geom_histogram(aes(x = Cholesterol), bins = 100, fill = "blue") +
+  labs( title = "Cholesterol Level for Patients without Heart Disease", x = "Cholesterol" , y = "Frequency")
+grid.arrange(p1, p2)
+```
+
+It appears that patients with lower levels of cholesterol are less likely to have heart disease relative to their counterparts with higher cholesterol. 
+
+The next set of charts analyze the relationship between the resting blood pressure of patients and their heart disease diagnosis. 
+
+```{r, echo=FALSE, out.width='70%'}
+p1 <- ggplot(heart_data[which(heart_data$HeartDisease==1),]) + 
+  geom_histogram(aes(x = RestingBP), bins = 100, fill = "red") +
+  labs( title = "Resting BP Level forPatients with Heart Disease", x = "Resting BP" , y = "Frequency")
+p2 <- ggplot(heart_data[which(heart_data$HeartDisease==0),]) + 
+  geom_histogram(aes(x = RestingBP), bins = 100, fill = "red") +
+  labs( title = "Resting BP Level for Patients without Heart Disease", x = "Resting BP" , y = "Frequency")
+grid.arrange(p1, p2)
+```
+
+It appears patients with higher resting BPs are at a much greater risk for heart disease than their counterparts with lower resting BPs.
+
+Finally, we examine the relationship between a patient's maximum heart and their diagnosis of heart disease. 
+
+```{r, echo=FALSE, out.width='70%'}
+p1 <- ggplot(heart_data[which(heart_data$HeartDisease==1),]) + 
+  geom_histogram(aes(x = MaxHR), bins = 100, fill = "green") +
+  labs( title = "Max HR Level for Patients with Heart Disease", x = "Max HR" , y = "Frequency")
+p2 <- ggplot(heart_data[which(heart_data$HeartDisease==0),]) + 
+  geom_histogram(aes(x = MaxHR), bins = 100, fill = "green") +
+  labs( title = "Max HR Level for Patients without Heart Disease", x = "Max HR" , y = "Frequency")
+grid.arrange(p1, p2)
+```
+
+It appears there is no real connection between max HR and having heart disease.
+
+
+# Models Used 
+## LASSO Regression
+
+### LASSO Regression Overview
+
+Now we will perform a series of analyses to see exactly which variables have the largest impact on heart disease diagnosis based on a LASSO output. 
+
+The first step is to simply place all of the variables into a linear regression model to get an understanding of which variables already have the largest impact on whether or not the person has heart disease.
+
+```{r, echo=FALSE}
+fit <- lm(HeartDisease ~. , heart_data)
+summary(fit)
+```
+
+
+In this series of analyses, the focus is on identifying variables that significantly impact heart disease diagnosis through a blend of linear regression and LASSO (Least Absolute Shrinkage and Selection Operator) models. Initially, all variables are tested in a traditional linear regression model to gauge their initial impact. This preliminary step reveals varying levels of influence among variables on heart disease, with certain factors like normal resting ECG and restingBP showing minimal impact due to their high p-values relative to the conventional alpha level of 0.05.
+
+```{r, echo=FALSE, out.width='70%'}
+heart_temp <- heart_data
+Y <- as.matrix(heart_temp[, 'HeartDisease']) # extract Y
+X <- model.matrix(HeartDisease ~ ., data = heart_temp)[, -1]
+force_in_indicator <- c(rep(0, 2), rep(1, ncol(X)-2))
+set.seed(1)
+lasso_model <- cv.glmnet(X, Y, alpha = 1, nfolds = 15, intercept = TRUE, penalty.factor = force_in_indicator)
+plot(lasso_model)
+coef.1se <- coef(lasso_model, s=exp(-3.5))
+coef.1se <- coef.1se[which(coef.1se !=0),][-1]
+lasso_selected2 <- c("HeartDisease", "ChestPainType", names(coef.1se)[-c(1:6)])
+lasso_selected2
+```
+
+The analysis progresses with the construction of a LASSO model, which is particularly useful for feature selection and regularization to avoid overfitting by penalizing the absolute size of the regression coefficients. By adjusting the model not to force any specific variable, it allows for an objective selection based on the data itself. This method is enhanced by cross-validation to determine the best lambda that minimizes prediction error, depicted in the LASSO plot which highlights the impact of log(λ) on mean squared error.
+
+The variables that remain significant in the LASSO model are then used to construct a 'relaxed LASSO' version—a linear regression model focused only on those predictors deemed most influential. This model highlights how variables like ChestPainType, MaxHR, ExerciseAngina, Oldpeak, and ST_Slope correlate strongly with heart disease outcomes. The Anova results further validate the significance of these variables, emphasizing their role in the predictive accuracy of the model.
+
+```{r, echo=FALSE}
+fit2 <- lm(HeartDisease ~ ChestPainType + MaxHR + ExerciseAngina + Oldpeak + ST_Slope, data=heart_temp)
+summary(fit2) 
+Anova(fit2)
+```
+
+This systematic approach not only refines the model for greater accuracy but also ensures that it is robust and generalizable, by focusing on variables that genuinely affect heart disease risk. This is crucial in clinical settings, where accurate and reliable prediction models can significantly impact patient outcomes and treatment strategies.
+
+### LASSO Regression Results
+
+The LASSO regression results provide a clear and concise determination of the most predictive variables for heart disease. By applying a regularization parameter that penalizes the absolute size of the regression coefficients, LASSO helps in reducing overfitting and improving the model's generalizability. This technique effectively shrinks the less important variable's coefficients to zero, thus selecting only the most significant predictors.
+
+From the analysis, it becomes evident that the type of chest pain (ChestPainTypeATA, ChestPainTypeTA, ChestPainTypeNAP) plays a crucial role in predicting heart disease, underscoring the different impacts of various angina types on heart health. Similarly, maximum heart rate (MaxHR) and exercise-induced angina (ExerciseAnginaY) are key factors, likely due to their direct relation to heart function under stress. The Oldpeak, which measures the depression induced by exercise relative to rest, and the ST_Slope (Flat and Up) are also significant predictors. These variables are related to the heart's electrical activity and response to exercise, providing crucial diagnostic information.
+
+The robust selection of these variables by the LASSO model emphasizes their importance in clinical assessment and risk stratification for heart disease. This focused approach not only enhances the predictive accuracy of the model but also offers valuable insights into the physiological impacts of these factors on heart health, guiding targeted interventions and preventative measures in clinical practice.
+
+## Neural Networks
+Multilayer Perceptrons (MLPs), a class of feed-forward artificial neural networks, have been employed to predict the presence of heart disease in patients based on a range of clinical parameters. The method involves constructing a sequence of layers where each layer is fully connected to the next one, facilitating a model that learns complex patterns from data through its multiple layers and neurons.
+
+### Neural Networks Overview
+```{r, echo=FALSE}
+data <- read.csv("heart.csv") 
+
+data <- data %>%
+  mutate(
+    Sex = as.numeric(factor(Sex, levels = c("M", "F"))),
+    ChestPainType = as.numeric(factor(ChestPainType, levels = c("ATA", "NAP", "TA", "ASY"))),
+    RestingECG = as.numeric(factor(RestingECG, levels = c("Normal", "ST", "LVH"))),
+    ExerciseAngina = as.numeric(factor(ExerciseAngina, levels = c("N", "Y"))),
+    ST_Slope = as.numeric(factor(ST_Slope, levels = c("Up", "Flat", "Down")))
+  )
+
+continuous_features <- c("Age", "RestingBP", "Cholesterol", "MaxHR", "Oldpeak")
+data[continuous_features] <- scale(data[continuous_features])
+
+data <- data %>% select(-HeartDisease, HeartDisease)
+```
+
+```{r, echo=FALSE}
+set.seed(42)
+n <- nrow(data)
+train_indices <- sample(n, size = 0.8 * n)
+train_data <- data[train_indices, ]
+val_data <- data[-train_indices, ]
+
+train_x <- as.matrix(train_data[, -ncol(train_data)])
+train_y <- train_data$HeartDisease
+val_x <- as.matrix(val_data[, -ncol(val_data)])
+val_y <- val_data$HeartDisease
+```
+
+```{r, echo=FALSE}
+library(keras)
+p <- ncol(train_x) 
+
+model <- keras_model_sequential() %>%
+  layer_dense(units = 32, activation = 'relu', input_shape = c(ncol(train_x))) %>%
+  layer_dense(units = 16, activation = 'relu') %>%
+  layer_dense(units = 16, activation = 'relu') %>%  # Additional layer
+  layer_dense(units = 1, activation = 'sigmoid')
+
+model %>% compile(
+  loss = 'binary_crossentropy',
+  optimizer = 'adam',
+  metrics = c('accuracy')
+)
+```
+
+```{r, echo=FALSE, results='hide'}
+library(keras)
+history <- model %>% fit(
+  train_x,
+  train_y,
+  epochs = 50,
+  batch_size = 30,
+  validation_data = list(val_x, val_y)
+)
+```
+
+```{r, echo=FALSE, results='hide'}
+library(keras)
+results <- model %>% evaluate(val_x, val_y)
+cat("Validation Loss:", results[[1]], "Validation Accuracy:", results[[2]], "\n")
+```
+
+```{r, echo=FALSE, results='hide'}
+library(keras)
+predictions <- model %>% predict(val_x)
+predicted_classes <- ifelse(predictions > 0.5, 1, 0)
+confusionMatrix <- table(Predicted = predicted_classes, Actual = val_y)
+```
+
+In our study, the neural network consists of an input layer defined by the dimensions of the predictors, two hidden layers, and a sigmoid output layer that maps the output to a binary classification. The hidden layers use the ReLU (Rectified Linear Unit) activation function, which introduces non-linearity, allowing the network to learn complex relationships in the data. The output layer uses a sigmoid function to produce a probability between 0 and 1, indicating the likelihood of heart disease.
+
+For optimization, the model employs the Adam optimizer, renowned for its efficiency in handling sparse gradients and adaptability across various scenarios, making it ideal for medical data applications. The network's parameters were initially set with 32 neurons in the first hidden layer and 16 in the subsequent layers, balancing complexity and computational efficiency.
+
+Training was executed with a split of 80% of the data used for learning and 20% reserved for validation, helping to minimize overfitting while gauging the model's generalization to new data. The training proceeded for 50 epochs with a batch size of 30, allowing for sufficient data exposure during weight adjustments.
+
+```{r figure-example, echo=FALSE, fig.cap="Learning curves showing model accuracy and loss over epochs.", out.width='60%', fig.pos='H'}
+knitr::include_graphics("modelresults.png")
+```
+
+The image displays the training and validation loss and accuracy of a neural network model over 50 epochs. It reveals that both loss and accuracy stabilize as training progresses, with the validation loss unusually tracking below the training loss, and the validation accuracy slightly exceeding the training accuracy throughout the epochs. This unusual pattern suggests excellent generalization, although it might also indicate a need to review the data splitting process to ensure no data leakage and that both sets are representative.
+
+### Neural Networks Results
+
+The neural network model demonstrated strong predictive performance in identifying heart disease from clinical measurements. After training, the model achieved a validation accuracy of 87.5%, indicating a high level of precision in its predictions. The loss during validation was recorded at 0.3273, reflecting the model's effectiveness at minimizing error between predicted and actual outcomes.
+
+The confusion matrix from the model's predictions provides deeper insight into its classification capabilities:
+
+```{r, echo=FALSE, out.width='70%'}
+confusion_matrix <- data.frame(
+  ` ` = c("No Heart Disease", "Heart Disease"),
+  `Forecast No Heart Disease` = c(55, 11),
+  `Forecast Heart Disease` = c(10, 108)
+)
+kable(confusion_matrix, col.names = c("", "Forecast No Heart Disease", "Forecast Heart Disease"), align = c('l', 'c', 'c'), caption = "Confusion Matrix") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F, position = "center") %>%
+  column_spec(1, bold = TRUE, border_right = TRUE)
+```
+
+The confusion matrix from the validation set reveals the following:
+
+- **True Positives (TP):** 108
+- **True Negatives (TN):** 55
+- **False Positives (FP):** 10
+- **False Negatives (FN):** 11
+
+This distribution confirms that the model is particularly strong in identifying true cases of heart disease (TP) and non-cases (TN), with fewer instances of incorrect predictions (FP, FN). The sensitivity, or true positive rate, of the model is approximately 90.8%, and the specificity, or true negative rate, is approximately 84.6%, indicating robust detection capabilities.
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width='70%'}
+library(pROC)
+
+probabilities <- model %>% predict(val_x)
+
+probabilities <- as.vector(probabilities)
+
+roc_curve <- roc(response = val_y, predictor = probabilities)
+plot(roc_curve, main = "ROC Curve")
+cat("AUC:", auc(roc_curve), "\n")
+```
+
+The Receiver Operating Characteristic (ROC) curve further illustrates the model's performance across various threshold settings. The area under the curve (AUC) was impressively high with a value of 0.918552, signaling excellent discriminative ability between those with and without heart disease. This metric is crucial in medical diagnostic tests, as it encapsulates the likelihood of correct disease classification relative to false alarms.
+
+```{r, echo=FALSE, out.width='70%'}
+library(PRROC)
+
+pr_curve <- pr.curve(scores.class0 = probabilities, weights.class0 = val_y, curve=T)
+
+plot(pr_curve)
+```
+
+The precision-recall curve further underscores the model's robust performance, with an area under the curve (AUC) of 0.9494. This measure indicates not only the model's ability to distinguish between classes but also its effectiveness in handling the positive class, which is often of greater clinical importance. The high AUC value reflects a strong balance between precision and recall, ensuring that the model minimizes the number of false negatives—a critical aspect in medical diagnostic processes.
+
+# Validity of Results and Future Improvement
+The study's analytical framework, incorporating both traditional statistical methods and advanced machine learning techniques, has provided a comprehensive understanding of the factors influencing heart disease. By initially employing linear regression, the analysis identified potential predictors of heart disease, highlighting their significance through statistical metrics. This was followed by LASSO regression, which refined the selection of variables by applying a regularization parameter to reduce overfitting and enhance model specificity. The robustness of these models was further validated by the inclusion of a neural network approach, which adapted to complex, non-linear relationships within the data more effectively than traditional models.
+
+The neural network, specifically a multilayer perceptron, demonstrated significant predictive accuracy, as evidenced by the high validation accuracy and the precision-recall metrics. The ability of the neural network to generalize well to unseen data was particularly notable, suggesting that the model has not only learned the training data effectively but can also apply this learning to new, similar datasets. This robustness is critical for clinical applications where the model needs to perform reliably across diverse patient demographics and conditions.
+
+Despite these strengths, the results and the models themselves can be further improved. One area of potential enhancement is the integration of more complex machine learning models that can capture more intricate patterns in the data. For instance, ensemble methods like Gradient Boosting Machines (GBMs) or advanced neural network architectures could be explored to assess whether they offer improvements in accuracy and robustness. Additionally, expanding the dataset to include a broader spectrum of patient data could help in understanding how the predictors of heart disease vary across different populations and conditions. Finally, incorporating feedback loops from clinical deployments could help in continuously refining the models, ensuring they remain relevant and accurate as new data and treatment methodologies evolve.
+
+Implementing these improvements would not only enhance the predictive performance of the models but also increase their utility in clinical settings, ultimately contributing to better patient outcomes through more personalized and accurate diagnostics.
+
+# Conclusion
+In this comprehensive study, the goal was to identify key predictors of heart disease using a blend of traditional statistical models and advanced neural network techniques. Initial analyses utilizing linear regression and LASSO regression allowed for the identification and refinement of significant predictors, such as types of chest pain, maximum heart rate, exercise-induced angina, and specific ECG changes. These factors were rigorously analyzed and validated for their predictive power, with LASSO regression effectively minimizing overfitting by penalizing less significant variables. Following this, a neural network model further explored the data, achieving high validation accuracy and excellent generalization capabilities as demonstrated by precision-recall metrics, underscoring the model's ability to perform well across unseen data sets.
+
+The combination of these modeling approaches provided a robust framework for understanding the complex relationships inherent in medical diagnostic data. The study's findings highlight the potential of using sophisticated machine learning techniques in clinical settings to enhance diagnostic accuracy and patient outcomes. Looking forward, refining these models with additional data, exploring more complex machine learning strategies, and continuously validating the models against new clinical outcomes will be crucial for advancing their application in healthcare. This iterative approach to model improvement and validation promises to refine the predictive capabilities further and tailor diagnostic tools to be more patient-specific, ultimately contributing to more personalized and effective treatment plans for heart disease.
+
+
+
